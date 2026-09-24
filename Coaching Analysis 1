@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cricket ACT - Live Performance Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { background-color: #0b0f19; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
+    .card-dark { background-color: #111827; border: 1px solid #1f2937; }
+    .bg-act-gold { background-color: #f3c300; }
+    .btn-ball { transition: all 0.15s ease; }
+    .btn-ball:active { transform: scale(0.92); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col pb-12">
+
+  <!-- Navigation Header -->
+  <header class="bg-[#0e1424] border-b border-gray-800 sticky top-0 z-40">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-md bg-act-gold flex items-center justify-center font-black text-slate-900 text-sm shadow">ACT</div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-base font-bold text-white">Cricket ACT</h1>
+            <span class="bg-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/30">Meteors Performance Hub</span>
+          </div>
+          <p class="text-[11px] text-gray-400">3-Discipline Live Scoring & Coaching Analysis Platform</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs font-semibold">
+          <button id="tab-live" onclick="switchMainView('live')" class="px-3 py-1 rounded-md bg-amber-500 text-slate-950 font-bold flex items-center space-x-1.5 shadow">
+            <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+            <span>Live Match Logger</span>
+          </button>
+          <button id="tab-deck" onclick="switchMainView('deck')" class="px-3 py-1 rounded-md text-gray-400 hover:text-white flex items-center space-x-1.5">
+            <i data-lucide="presentation" class="w-3.5 h-3.5"></i>
+            <span>Coaching Deck & Feedback</span>
+          </button>
+        </div>
+
+        <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs font-semibold">
+          <button id="btn-inn-1" onclick="setInnings(1)" class="px-3 py-1 rounded-md bg-amber-500 text-slate-950 font-bold">Innings 1</button>
+          <button id="btn-inn-2" onclick="setInnings(2)" class="px-3 py-1 rounded-md text-gray-400 hover:text-white">Innings 2</button>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button onclick="openNewMatchModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 shadow transition">
+          <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+          <span>Start New Match</span>
+        </button>
+        <button onclick="exportMatchJSON()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 transition">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>Export</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live KPI Metrics Bar -->
+  <section class="max-w-[1600px] mx-auto w-full px-4 pt-6">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="card-dark rounded-xl p-3.5 border-l-4 border-l-amber-500">
+        <div class="text-[10px] uppercase font-bold text-gray-400">Score / Overs</div>
+        <div class="flex items-baseline space-x-2 mt-1">
+          <span id="kpi-score" class="text-2xl font-black text-white">0/0</span>
+          <span id="kpi-overs" class="text-xs text-gray-400">(0.0)</span>
+        </div>
+        <div class="text-[10px] text-amber-400 font-semibold mt-1">CRR: <span id="kpi-crr">0.00</span></div>
+      </div>
+
+      <div class="card-dark rounded-xl p-3.5">
+        <div class="text-[10px] uppercase font-bold text-gray-400">Scoring Shot % (SS%)</div>
+        <div id="kpi-ss" class="text-2xl font-black text-emerald-400 mt-1">0%</div>
+        <div class="text-[10px] text-gray-500 mt-1">Target: &ge;50%</div>
+      </div>
+
+      <div class="card-dark rounded-xl p-3.5">
+        <div class="text-[10px] uppercase font-bold text-gray-400">Boundary %</div>
+        <div id="kpi-boundary" class="text-2xl font-black text-indigo-400 mt-1">0%</div>
+        <div class="text-[10px] text-gray-500 mt-1">Target: &ge;10%</div>
+      </div>
+
+      <div class="card-dark rounded-xl p-3.5">
+        <div class="text-[10px] uppercase font-bold text-gray-400">Dots & 1s % (Bowl)</div>
+        <div id="kpi-dots" class="text-2xl font-black text-sky-400 mt-1">0%</div>
+        <div class="text-[10px] text-gray-500 mt-1">Target: &ge;85%</div>
+      </div>
+
+      <div class="card-dark rounded-xl p-3.5">
+        <div class="text-[10px] uppercase font-bold text-gray-400">New Batter Dots %</div>
+        <div id="kpi-new-dots" class="text-2xl font-black text-purple-400 mt-1">0%</div>
+        <div class="text-[10px] text-gray-500 mt-1">First 10 Balls (&ge;60%)</div>
+      </div>
+
+      <div class="card-dark rounded-xl p-3.5">
+        <div class="text-[10px] uppercase font-bold text-gray-400">Fielding Runs Saved</div>
+        <div id="kpi-runs-saved" class="text-2xl font-black text-amber-400 mt-1">+0</div>
+        <div class="text-[10px] text-gray-500 mt-1">Target: &ge;10+</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Work Area -->
+  <main class="max-w-[1600px] mx-auto w-full px-4 mt-6 flex-grow">
+    
+    <!-- LIVE LOGGER -->
+    <div id="view-live" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <div class="lg:col-span-8 space-y-5">
+        <div class="card-dark rounded-xl p-4 flex flex-wrap justify-between items-center gap-3">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="zap" class="w-5 h-5 text-amber-400"></i>
+            <h2 id="section-title" class="text-sm font-bold text-white">Batting Live Logger</h2>
+            <span id="match-meta-pill" class="text-[10px] bg-gray-800 text-amber-400 font-bold px-2 py-0.5 rounded border border-gray-700">Official Match</span>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <span class="text-[10px] text-gray-400 font-bold uppercase">Discipline:</span>
+            <div class="flex bg-gray-900 p-1 rounded-lg border border-gray-800 text-xs">
+              <button id="disc-batting" onclick="setDiscipline('batting')" class="px-2.5 py-1 rounded-md bg-amber-500 text-slate-950 font-bold">Batting</button>
+              <button id="disc-bowling" onclick="setDiscipline('bowling')" class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white">Bowling</button>
+              <button id="disc-fielding" onclick="setDiscipline('fielding')" class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white">Fielding</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Blank Striker/Non-Striker Entry -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="card-dark rounded-xl p-4 border-l-4 border-l-amber-500">
+            <div class="flex justify-between items-start">
+              <div class="w-full mr-2">
+                <span class="text-[10px] uppercase font-bold text-amber-400">Strike Batter (*)</span>
+                <input type="text" id="inp-striker" value="" placeholder="e.g. K. Mack" onchange="updateBatterNames()" class="bg-transparent font-bold text-white text-base focus:outline-none w-full border-b border-dashed border-gray-700 focus:border-amber-400 mt-1">
+              </div>
+              <button onclick="swapStrike()" class="text-[10px] bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 font-bold px-2 py-1 rounded flex items-center space-x-1 shrink-0">
+                <i data-lucide="repeat" class="w-3 h-3"></i>
+                <span>Swap</span>
+              </button>
+            </div>
+            <div class="mt-3 flex items-center space-x-3 text-xs text-gray-400">
+              <div>Runs: <span id="striker-runs" class="font-bold text-white">0</span></div>
+              <div>Balls: <span id="striker-balls" class="font-bold text-white">0</span></div>
+              <div>SS%: <span id="striker-ss" class="font-bold text-emerald-400">0%</span></div>
+            </div>
+          </div>
+
+          <div class="card-dark rounded-xl p-4 border-l-4 border-l-gray-700">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-gray-400">Non-Strike Batter</span>
+              <input type="text" id="inp-nonstriker" value="" placeholder="e.g. R. Trenaman" onchange="updateBatterNames()" class="bg-transparent font-bold text-white text-base focus:outline-none w-full border-b border-dashed border-gray-700 focus:border-amber-400 mt-1">
+            </div>
+            <div class="mt-3 flex items-center space-x-3 text-xs text-gray-400">
+              <div>Runs: <span id="nonstriker-runs" class="font-bold text-white">0</span></div>
+              <div>Balls: <span id="nonstriker-balls" class="font-bold text-white">0</span></div>
+              <div>SS%: <span id="nonstriker-ss" class="font-bold text-emerald-400">0%</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Blank Bowler Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="card-dark rounded-xl p-3.5">
+            <label class="text-[10px] uppercase font-bold text-gray-400 block mb-1">Current Bowler Name</label>
+            <input type="text" id="inp-bowler" value="" placeholder="e.g. L. Cheatle" class="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white font-medium w-full focus:outline-none focus:border-amber-500">
+          </div>
+
+          <div class="card-dark rounded-xl p-3.5">
+            <label class="text-[10px] uppercase font-bold text-gray-400 block mb-1">Bowler Type</label>
+            <select id="inp-bowler-type" class="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white font-medium w-full focus:outline-none focus:border-amber-500">
+              <option value="LA Orthodox">Left-Arm Orthodox Spin</option>
+              <option value="RA Pace">Right-Arm Pace</option>
+              <option value="LA Pace">Left-Arm Pace</option>
+              <option value="RA Offspin">Right-Arm Offspin</option>
+              <option value="Legspin">Legspin</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Quick Keypad -->
+        <div class="card-dark rounded-xl p-5">
+          <div class="flex justify-between items-center mb-3">
+            <span class="text-xs uppercase font-bold text-gray-300">Record Ball Outcome</span>
+            <span class="text-[10px] text-gray-500">Clicking logs delivery & updates strike</span>
+          </div>
+
+          <div class="grid grid-cols-6 md:grid-cols-11 gap-2">
+            <button onclick="logBall('0')" class="btn-ball bg-gray-800 hover:bg-gray-700 text-white font-black py-3 rounded-lg text-sm border border-gray-700">0</button>
+            <button onclick="logBall('1')" class="btn-ball bg-gray-800 hover:bg-gray-700 text-white font-black py-3 rounded-lg text-sm border border-gray-700">1</button>
+            <button onclick="logBall('2')" class="btn-ball bg-gray-800 hover:bg-gray-700 text-white font-black py-3 rounded-lg text-sm border border-gray-700">2</button>
+            <button onclick="logBall('3')" class="btn-ball bg-gray-800 hover:bg-gray-700 text-white font-black py-3 rounded-lg text-sm border border-gray-700">3</button>
+            <button onclick="logBall('4')" class="btn-ball bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 rounded-lg text-sm shadow">4</button>
+            <button onclick="logBall('6')" class="btn-ball bg-act-gold hover:bg-amber-400 text-slate-950 font-black py-3 rounded-lg text-sm shadow">6</button>
+            <button onclick="logBall('W')" class="btn-ball bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-lg text-sm shadow">W</button>
+            <button onclick="logBall('WD')" class="btn-ball bg-amber-600/80 hover:bg-amber-600 text-white font-bold py-3 rounded-lg text-xs">WD</button>
+            <button onclick="logBall('NB')" class="btn-ball bg-amber-600/80 hover:bg-amber-600 text-white font-bold py-3 rounded-lg text-xs">NB</button>
+            <button onclick="logBall('LB')" class="btn-ball bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3 rounded-lg text-xs border border-gray-700">LB</button>
+            <button onclick="logBall('B')" class="btn-ball bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3 rounded-lg text-xs border border-gray-700">B</button>
+          </div>
+
+          <div class="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between">
+            <span class="text-xs text-gray-400 font-semibold">Current Over Deliveries:</span>
+            <div id="current-over-balls" class="flex space-x-2">
+              <span class="text-xs text-gray-600 italic">No balls logged in this over yet</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Over Stream -->
+      <div class="lg:col-span-4">
+        <div class="card-dark rounded-xl p-4 h-full flex flex-col">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+              <i data-lucide="clock" class="w-4 h-4 text-amber-400"></i>
+              <span>Live Over Stream</span>
+            </h3>
+            <span id="over-count-badge" class="text-[10px] bg-gray-800 text-amber-400 font-bold px-2 py-0.5 rounded border border-gray-700">0 Overs</span>
+          </div>
+
+          <div id="over-stream-list" class="space-y-3 overflow-y-auto max-h-[500px] flex-grow pr-1">
+            <div class="text-center py-12 text-gray-500 text-xs">
+              <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+              <p>No overs logged yet. Press keys on the left or click 'Start New Match'.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PRESENTATION DECK -->
+    <div id="view-deck" class="hidden space-y-6">
+      <div class="card-dark p-8 rounded-2xl border-2 border-amber-500/30">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <span class="bg-amber-500 text-slate-950 font-black text-xs px-3 py-1 rounded-full uppercase">Batting Phase Deck</span>
+            <h2 class="text-2xl font-black text-white mt-2">10-Over Phase Scoring Performance</h2>
+          </div>
+          <div class="text-right">
+            <div id="deck-match-name" class="text-xs text-gray-400">Official ACT Match</div>
+            <div id="deck-match-date" class="text-amber-400 font-bold text-sm">Post-Match Review</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+          <div class="bg-gray-900 p-4 rounded-xl border border-gray-800">
+            <div class="h-64"><canvas id="chart-phase-blocks"></canvas></div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="bg-gray-900/90 border border-gray-800 p-4 rounded-xl flex justify-between items-center">
+              <div>
+                <div class="text-xs text-amber-400 font-bold uppercase">Scoring Shot % (SS%)</div>
+                <div class="text-xs text-gray-400">Formula: (Scored Balls / Balls Faced) &times; 100</div>
+              </div>
+              <div id="deck-ss-val" class="text-3xl font-black text-emerald-400">0%</div>
+            </div>
+
+            <div class="bg-gray-900/90 border border-gray-800 p-4 rounded-xl flex justify-between items-center">
+              <div>
+                <div class="text-xs text-amber-400 font-bold uppercase">Boundary Rate</div>
+                <div class="text-xs text-gray-400">Boundaries / Total Balls Faced</div>
+              </div>
+              <div id="deck-bound-val" class="text-3xl font-black text-indigo-400">0%</div>
+            </div>
+
+            <div class="bg-gray-900/90 border border-gray-800 p-4 rounded-xl">
+              <div class="text-xs text-amber-400 font-bold uppercase mb-1">Synthesized Coaching Notes</div>
+              <ul id="deck-notes-list" class="text-xs text-gray-300 space-y-1 list-disc list-inside">
+                <li>Log delivery data to generate live phase insights.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- START NEW MATCH SETUP MODAL -->
+  <div id="modal-new-match" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="card-dark rounded-2xl max-w-lg w-full overflow-hidden border border-gray-800 shadow-2xl">
+      <div class="bg-gray-900 p-4 border-b border-gray-800 flex justify-between items-center">
+        <h3 class="font-bold text-white text-sm flex items-center space-x-2">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-amber-400"></i>
+          <span>Start New Match Setup</span>
+        </h3>
+        <button onclick="closeNewMatchModal()" class="text-gray-400 hover:text-white">&times;</button>
+      </div>
+
+      <form onsubmit="handleStartMatch(event)" class="p-6 space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-gray-400 mb-1">Our Team Name</label>
+            <input type="text" id="setup-team" placeholder="e.g. ACT Meteors" required class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-white font-medium focus:outline-none focus:border-amber-400">
+          </div>
+          <div>
+            <label class="block font-bold text-gray-400 mb-1">Opposition</label>
+            <input type="text" id="setup-opponent" placeholder="e.g. NSW Breakers" required class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-white font-medium focus:outline-none focus:border-amber-400">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-gray-400 mb-1">Competition</label>
+            <input type="text" id="setup-competition" placeholder="e.g. WNCL / T20" required class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-white font-medium focus:outline-none focus:border-amber-400">
+          </div>
+          <div>
+            <label class="block font-bold text-gray-400 mb-1">Venue</label>
+            <input type="text" id="setup-venue" placeholder="e.g. EPC Solar Park" required class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2.5 text-white font-medium focus:outline-none focus:border-amber-400">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block font-bold text-gray-400 mb-1">Match Date</label>
+            <input type="date" id="setup-date" required class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2 text-white font-medium focus:outline-none focus:border-amber-400">
+          </div>
+          <div>
+            <label class="block font-bold text-gray-400 mb-1">Target Runs</label>
+            <input type="number" id="setup-target" value="250" min="1" class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2 text-white font-medium focus:outline-none focus:border-amber-400">
+          </div>
+          <div>
+            <label class="block font-bold text-gray-400 mb-1">Max Overs</label>
+            <input type="number" id="setup-overs" value="50" min="1" max="50" class="w-full bg-gray-900 border border-gray-800 rounded-lg p-2 text-white font-medium focus:outline-none focus:border-amber-400">
+          </div>
+        </div>
+
+        <div class="pt-4 flex justify-between items-center border-t border-gray-800">
+          <button type="button" onclick="closeNewMatchModal()" class="text-gray-400 hover:text-white font-semibold">Cancel</button>
+          <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2.5 rounded-lg shadow transition">
+            Initialize Match Session
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let appState = {
+      team: "ACT Meteors",
+      opponent: "Opposition",
+      competition: "Match",
+      venue: "",
+      date: new Date().toISOString().split('T')[0],
+      target: 250,
+      totalOvers: 50,
+      innings: 1,
+      discipline: 'batting',
+      striker: "",
+      nonStriker: "",
+      currentOverNumber: 1,
+      currentOverDeliveries: [],
+      oversLogged: [],
+      runsSaved: 0
+    };
+
+    let phaseChart = null;
+
+    window.onload = function() {
+      document.getElementById('setup-date').value = appState.date;
+      lucide.createIcons();
+      updateUI();
+    };
+
+    function openNewMatchModal() { document.getElementById('modal-new-match').classList.remove('hidden'); }
+    function closeNewMatchModal() { document.getElementById('modal-new-match').classList.add('hidden'); }
+
+    function handleStartMatch(e) {
+      e.preventDefault();
+      appState.team = document.getElementById('setup-team').value;
+      appState.opponent = document.getElementById('setup-opponent').value;
+      appState.competition = document.getElementById('setup-competition').value;
+      appState.venue = document.getElementById('setup-venue').value;
+      appState.date = document.getElementById('setup-date').value;
+      appState.target = parseInt(document.getElementById('setup-target').value);
+      appState.totalOvers = parseInt(document.getElementById('setup-overs').value);
+      
+      appState.oversLogged = [];
+      appState.currentOverDeliveries = [];
+      appState.currentOverNumber = 1;
+
+      closeNewMatchModal();
+      updateUI();
+    }
+
+    function switchMainView(view) {
+      if (view === 'live') {
+        document.getElementById('view-live').classList.remove('hidden');
+        document.getElementById('view-deck').classList.add('hidden');
+        document.getElementById('tab-live').className = "px-3 py-1 rounded-md bg-amber-500 text-slate-950 font-bold flex items-center space-x-1.5 shadow";
+        document.getElementById('tab-deck').className = "px-3 py-1 rounded-md text-gray-400 hover:text-white flex items-center space-x-1.5";
+      } else {
+        document.getElementById('view-live').classList.add('hidden');
+        document.getElementById('view-deck').classList.remove('hidden');
+        document.getElementById('tab-deck').className = "px-3 py-1 rounded-md bg-amber-500 text-slate-950 font-bold flex items-center space-x-1.5 shadow";
+        document.getElementById('tab-live').className = "px-3 py-1 rounded-md text-gray-400 hover:text-white flex items-center space-x-1.5";
+        renderDeck();
+      }
+    }
+
+    function setInnings(inn) {
+      appState.innings = inn;
+      document.getElementById('btn-inn-1').className = inn === 1 ? "px-3 py-1 rounded-md bg-amber-500 text-slate-950 font-bold" : "px-3 py-1 rounded-md text-gray-400 hover:text-white";
+      document.getElementById('btn-inn-2').className = inn === 2 ? "px-3 py-1 rounded-md bg-amber-500 text-slate-950 font-bold" : "px-3 py-1 rounded-md text-gray-400 hover:text-white";
+      updateUI();
+    }
+
+    function setDiscipline(disc) {
+      appState.discipline = disc;
+      ['batting','bowling','fielding'].forEach(d => {
+        document.getElementById(`disc-${d}`).className = d === disc ? "px-2.5 py-1 rounded-md bg-amber-500 text-slate-950 font-bold" : "px-2.5 py-1 rounded-md text-gray-400 hover:text-white";
+      });
+    }
+
+    function swapStrike() {
+      const temp = appState.striker;
+      appState.striker = appState.nonStriker;
+      appState.nonStriker = temp;
+      document.getElementById('inp-striker').value = appState.striker;
+      document.getElementById('inp-nonstriker').value = appState.nonStriker;
+    }
+
+    function updateBatterNames() {
+      appState.striker = document.getElementById('inp-striker').value;
+      appState.nonStriker = document.getElementById('inp-nonstriker').value;
+    }
+
+    function logBall(val) {
+      appState.currentOverDeliveries.push(val);
+      if (['1','3'].includes(val)) swapStrike();
+
+      const legalBalls = appState.currentOverDeliveries.filter(b => !['WD','NB'].includes(b));
+      if (legalBalls.length === 6) {
+        let overRuns = 0, overWkts = 0;
+        appState.currentOverDeliveries.forEach(b => {
+          if (b === 'W') overWkts++;
+          else if (!isNaN(parseInt(b))) overRuns += parseInt(b);
+          else if (['WD','NB'].includes(b)) overRuns += 1;
+        });
+
+        appState.oversLogged.push({
+          overNum: appState.currentOverNumber,
+          bowler: document.getElementById('inp-bowler').value || 'Bowler',
+          bowlerType: document.getElementById('inp-bowler-type').value,
+          balls: [...appState.currentOverDeliveries],
+          runs: overRuns,
+          wkts: overWkts
+        });
+
+        appState.currentOverDeliveries = [];
+        appState.currentOverNumber++;
+        swapStrike();
+      }
+
+      updateUI();
+    }
+
+    function updateUI() {
+      let totalRuns = 0, totalWkts = 0, totalBalls = 0, totalScoringBalls = 0, totalBoundaries = 0;
+
+      appState.oversLogged.forEach(o => {
+        totalRuns += o.runs;
+        totalWkts += o.wkts;
+        o.balls.forEach(b => {
+          totalBalls++;
+          const v = parseInt(b);
+          if (!isNaN(v) && v > 0) totalScoringBalls++;
+          if (v === 4 || v === 6) totalBoundaries++;
+        });
+      });
+
+      const totalOversCount = appState.oversLogged.length;
+      const crr = totalOversCount > 0 ? (totalRuns / totalOversCount).toFixed(2) : "0.00";
+      const ssPercent = totalBalls > 0 ? ((totalScoringBalls / totalBalls) * 100).toFixed(1) : "0";
+      const boundaryPercent = totalBalls > 0 ? ((totalBoundaries / totalBalls) * 100).toFixed(1) : "0";
+
+      document.getElementById('kpi-score').textContent = `${totalRuns}/${totalWkts}`;
+      document.getElementById('kpi-overs').textContent = `(${totalOversCount}.${appState.currentOverDeliveries.length})`;
+      document.getElementById('kpi-crr').textContent = crr;
+      document.getElementById('kpi-ss').textContent = `${ssPercent}%`;
+      document.getElementById('kpi-boundary').textContent = `${boundaryPercent}%`;
+      document.getElementById('match-meta-pill').textContent = `${appState.team} vs ${appState.opponent} (${appState.competition})`;
+
+      const ballContainer = document.getElementById('current-over-balls');
+      if (appState.currentOverDeliveries.length === 0) {
+        ballContainer.innerHTML = `<span class="text-xs text-gray-600 italic">No balls logged in this over yet</span>`;
+      } else {
+        ballContainer.innerHTML = appState.currentOverDeliveries.map(b => `
+          <span class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${b==='W'?'bg-red-600 text-white':b==='4'||b==='6'?'bg-amber-500 text-slate-950':'bg-gray-800 text-white'}">${b}</span>
+        `).join('');
+      }
+
+      const streamContainer = document.getElementById('over-stream-list');
+      document.getElementById('over-count-badge').textContent = `${appState.oversLogged.length} Overs`;
+
+      if (appState.oversLogged.length === 0) {
+        streamContainer.innerHTML = `
+          <div class="text-center py-12 text-gray-500 text-xs">
+            <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+            <p>No overs logged yet. Press keys on the left or click 'Start New Match'.</p>
+          </div>
+        `;
+      } else {
+        streamContainer.innerHTML = appState.oversLogged.slice().reverse().map(o => `
+          <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 text-xs">
+            <div class="flex justify-between items-center mb-1.5">
+              <span class="font-bold text-amber-400">Over ${o.overNum}</span>
+              <span class="text-[10px] text-gray-400">${o.bowler} (${o.bowlerType})</span>
+            </div>
+            <div class="flex items-center space-x-1.5 mb-2">
+              ${o.balls.map(b => `<span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${b==='W'?'bg-red-600 text-white':b==='4'\vert{}\vert{}b==='6'?'bg-amber-500 text-slate-950':'bg-gray-800 text-gray-300'}">${b}</span>`).join('')}
+            </div>
+            <div class="flex justify-between items-center text-[10px] text-gray-400 pt-1 border-t border-gray-800/80">
+              <span>Runs: <b class="text-white">${o.runs}</b></span>
+              <span>Wkts: <b class="text-red-400">${o.wkts}</b></span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      lucide.createIcons();
+    }
+
+    function renderDeck() {
+      let blockRuns = [0, 0, 0, 0, 0];
+      let totalBalls = 0, scoringBalls = 0, boundaries = 0;
+
+      appState.oversLogged.forEach(o => {
+        const idx = Math.min(Math.floor((o.overNum - 1) / 10), 4);
+        blockRuns[idx] += o.runs;
+
+        o.balls.forEach(b => {
+          totalBalls++;
+          const v = parseInt(b);
+          if (!isNaN(v) && v > 0) scoringBalls++;
+          if (v === 4 || v === 6) boundaries++;
+        });
+      });
+
+      const ss = totalBalls > 0 ? ((scoringBalls / totalBalls) * 100).toFixed(1) : "0";
+      const bRate = totalBalls > 0 ? ((boundaries / totalBalls) * 100).toFixed(1) : "0";
+
+      document.getElementById('deck-match-name').textContent = `${appState.team} vs ${appState.opponent}`;
+      document.getElementById('deck-match-date').textContent = `${appState.competition} (${appState.date})`;
+      document.getElementById('deck-ss-val').textContent = `${ss}%`;
+      document.getElementById('deck-bound-val').textContent = `${bRate}%`;
+
+      document.getElementById('deck-notes-list').innerHTML = `
+        <li>Team achieved a ${ss}% Scoring Shot percentage across ${totalBalls} balls faced.</li>
+        <li>Boundary rate recorded at ${bRate}% total deliveries.</li>
+        <li>Match session recorded for ${appState.venue} against ${appState.opponent}.</li>
+      `;
+
+      const ctx = document.getElementById('chart-phase-blocks').getContext('2d');
+      if (phaseChart) phaseChart.destroy();
+
+      phaseChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Overs 1-10', 'Overs 11-20', 'Overs 21-30', 'Overs 31-40', 'Overs 41-50'],
+          datasets: [{
+            label: 'Runs Scored',
+            data: blockRuns,
+            backgroundColor: '#f3c300',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    function exportMatchJSON() {
+      const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+      const anchor = document.createElement('a');
+      anchor.setAttribute("href", str);
+      anchor.setAttribute("download", `Cricket_ACT_Match_${appState.team}_vs_${appState.opponent}_${appState.date}.json`);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    }
+  </script>
+</body>
+</html>
